@@ -1,0 +1,39 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The server address is injected at build time:  -PAPP_URL=http://1.2.3.4   (or env APP_URL)
+def appUrl = (project.findProperty('APP_URL') ?: System.getenv('APP_URL') ?: 'http://SERVER-IP').toString().trim()
+
+android {
+    namespace 'com.niftyalgo.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.niftyalgo.app'
+        minSdk 24
+        targetSdk 34
+        versionCode (System.getenv('CI_PIPELINE_IID') ?: '1').toInteger()
+        versionName '1.0'
+        buildConfigField 'String', 'APP_URL', "\"${appUrl}\""
+    }
+
+    buildFeatures { buildConfig true }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // signed with the debug key so the APK installs directly (see README for a real keystore)
+            signingConfig signingConfigs.debug
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
+}

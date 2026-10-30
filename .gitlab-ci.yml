@@ -1,0 +1,48 @@
+# Builds the Nifty Algo Android APK.
+# Required: GitLab > Settings > CI/CD > Variables > add  APP_URL  =  http://YOUR-SERVER-IP   (or your https domain)
+image: gradle:8.7.0-jdk17
+
+variables:
+  ANDROID_HOME: "$CI_PROJECT_DIR/.android-sdk"
+  ANDROID_SDK_ROOT: "$CI_PROJECT_DIR/.android-sdk"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+stages: [build]
+
+build_apk:
+  stage: build
+  cache:
+    key: gradle-and-sdk
+    paths:
+      - .gradle/caches
+      - .gradle/wrapper
+      - .android-sdk
+  before_script:
+    - |
+      if [ -z "$APP_URL" ]; then
+        echo "ERROR: set the APP_URL CI/CD variable (Settings > CI/CD > Variables), e.g. http://1.2.3.4"; exit 1
+      fi
+    - apt-get update -qq && apt-get install -y -qq unzip curl >/dev/null
+    - |
+      if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
+        mkdir -p "$ANDROID_HOME/cmdline-tools"
+        curl -fsSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q /tmp/cmdtools.zip -d "$ANDROID_HOME/cmdline-tools"
+        mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+      fi
+    - export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+    - yes | sdkmanager --licenses >/dev/null || true
+    - sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" >/dev/null
+  script:
+    - echo "Building APK for $APP_URL"
+    - gradle --no-daemon assembleRelease -PAPP_URL="$APP_URL"
+    - mkdir -p dist && cp app/build/outputs/apk/release/app-release.apk dist/NiftyAlgo.apk
+  artifacts:
+    name: NiftyAlgo-apk
+    paths:
+      - dist/NiftyAlgo.apk
+    expire_in: 90 days
+  rules:
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
